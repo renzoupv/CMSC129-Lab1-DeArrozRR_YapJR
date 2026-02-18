@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X, Check } from "lucide-react";
-import { Exercise, Workout } from "@/types/workout";
+import type { Exercise, Workout } from "@/types/workout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 

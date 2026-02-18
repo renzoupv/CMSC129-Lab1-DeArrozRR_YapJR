@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Trash2, Clock } from "lucide-react";
-import { Workout } from "@/types/workout";
+import type { Workout } from "@/types/workout";
 
 interface WorkoutHistoryProps {
   workouts: Workout[];
