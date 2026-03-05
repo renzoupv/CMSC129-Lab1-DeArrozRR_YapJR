@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Clock, Edit2, Plus, X, Check, Pencil } from "lucide-react";
+import { Trash2, Clock, Edit2, Plus, X, Check, Pencil, Archive, Undo2 } from "lucide-react";
 import type { Workout, Exercise } from "@/types/workout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 interface WorkoutHistoryProps {
   workouts: Workout[];
-  onDelete: (id: string) => void;
+  onDelete: (id: string, type: "soft" | "hard") => void;
   onUpdate: (id: string, updated: Workout) => void;
+  onRestore: (id: string) => void;
+  isTrashView: boolean;
 }
 
 // Inline editable row for a single exercise
@@ -149,7 +151,7 @@ const ExerciseRow = ({
 
 // ─────────────────────────────────────────────
 
-const WorkoutHistory = ({ workouts, onDelete, onUpdate }: WorkoutHistoryProps) => {
+const WorkoutHistory = ({ workouts, onDelete, onUpdate, onRestore, isTrashView }: WorkoutHistoryProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editExercises, setEditExercises] = useState<Exercise[]>([]);
   const [editTitle, setEditTitle] = useState("");
@@ -163,8 +165,12 @@ const WorkoutHistory = ({ workouts, onDelete, onUpdate }: WorkoutHistoryProps) =
   if (workouts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
-        <p className="text-muted-foreground font-heading text-lg">No workouts yet</p>
-        <p className="text-sm text-muted-foreground mt-1">Start your first workout above!</p>
+        <p className="text-muted-foreground font-heading text-lg">
+          {isTrashView ? "Trash is empty" : "No workouts yet"}
+        </p>
+        {!isTrashView && (
+          <p className="text-sm text-muted-foreground mt-1">Start your first workout above!</p>
+        )}
       </div>
     );
   }
@@ -233,7 +239,6 @@ const WorkoutHistory = ({ workouts, onDelete, onUpdate }: WorkoutHistoryProps) =
 
   return (
     <div className="space-y-3">
-      <h2 className="text-lg font-heading font-bold text-foreground">History</h2>
       {workouts.map((workout, i) => {
         const isEditing = editingId === workout.id;
         const totalVolume = workout.exercises.reduce(
@@ -362,13 +367,32 @@ const WorkoutHistory = ({ workouts, onDelete, onUpdate }: WorkoutHistoryProps) =
                   ))}
                 </div>
               </div>
+              
+              {/* ✅ THE BUTTON CONTAINER */}
               <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => startEdit(workout)} className="text-muted-foreground hover:text-primary transition-colors">
-                  <Edit2 className="h-4 w-4" />
-                </button>
-                <button onClick={() => onDelete(workout.id)} className="text-muted-foreground hover:text-destructive transition-colors">
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                {isTrashView ? (
+                  <>
+                    {/* RESTORE BUTTON (Only in Trash) */}
+                    <button onClick={() => onRestore(workout.id)} title="Restore Workout" className="text-muted-foreground hover:text-green-500 transition-colors">
+                      <Undo2 className="h-4 w-4" />
+                    </button>
+                    {/* HARD DELETE BUTTON (Only in Trash) */}
+                    <button onClick={() => onDelete(workout.id, "hard")} title="Permanently Delete" className="text-muted-foreground hover:text-destructive transition-colors">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {/* EDIT BUTTON (Only in Active) */}
+                    <button onClick={() => startEdit(workout)} title="Edit Workout" className="text-muted-foreground hover:text-primary transition-colors">
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                    {/* SOFT DELETE BUTTON (Only in Active) */}
+                    <button onClick={() => onDelete(workout.id, "soft")} title="Move to Trash" className="text-muted-foreground hover:text-orange-500 transition-colors">
+                      <Archive className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>
