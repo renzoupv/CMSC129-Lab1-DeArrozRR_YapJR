@@ -9,6 +9,7 @@ export interface Exercise {
 export interface Workout {
   id: string;
   date: string;
+  title: string;
   exercises: Exercise[];
   duration: number; // minutes
 }
