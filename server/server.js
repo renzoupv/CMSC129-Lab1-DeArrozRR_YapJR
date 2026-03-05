@@ -22,12 +22,13 @@ app.get("/api/health", (req, res) => {
 // --- Mongoose model (Workouts) ---
 const workoutSchema = new mongoose.Schema(
   {
+    title: { type: String, default: "Workout" }, // ADD: title field
     date: { type: String, required: true },
-    duration: { type: Number, default: 0 }, 
+    duration: { type: Number, default: 0 },
 
     exercises: [
       {
-        id: { type: String, required: true }, 
+        id: { type: String, required: true },
         name: { type: String, required: true },
         sets: { type: Number, required: true },
         reps: { type: Number, required: true },
@@ -45,8 +46,9 @@ app.get("/api/workouts", async (req, res) => {
   const docs = await Workout.find().sort({ createdAt: -1 });
   const workouts = docs.map((d) => ({
     id: d._id.toString(),
+    title: d.title ?? "Workout", // ADD: include title (fallback for old docs)
     date: d.date,
-    duration: d.duration ?? 0,     
+    duration: d.duration ?? 0,
     exercises: d.exercises,
   }));
   res.json({ workouts });
@@ -54,23 +56,25 @@ app.get("/api/workouts", async (req, res) => {
 
 // CREATE
 app.post("/api/workouts", async (req, res) => {
-  const { date, exercises, duration } = req.body;
+  const { date, title, exercises, duration } = req.body; // ADD: destructure title
 
   if (!date || !Array.isArray(exercises) || exercises.length === 0) {
     return res.status(400).send("Invalid payload");
   }
 
   const doc = await Workout.create({
+    title: title?.trim() || "Workout", // ADD: save title with fallback
     date,
     exercises,
-    duration: Number(duration) || 0,  
+    duration: Number(duration) || 0,
   });
 
   res.status(201).json({
     workout: {
       id: doc._id.toString(),
+      title: doc.title, // ADD: return title
       date: doc.date,
-      duration: doc.duration ?? 0,    
+      duration: doc.duration ?? 0,
       exercises: doc.exercises,
     },
   });
@@ -78,7 +82,7 @@ app.post("/api/workouts", async (req, res) => {
 
 // UPDATE
 app.put("/api/workouts/:id", async (req, res) => {
-  const { date, exercises, duration } = req.body;
+  const { date, title, exercises, duration } = req.body; // ADD: destructure title
 
   if (!date || !Array.isArray(exercises)) {
     return res.status(400).send("Invalid payload");
@@ -86,8 +90,13 @@ app.put("/api/workouts/:id", async (req, res) => {
 
   const doc = await Workout.findByIdAndUpdate(
     req.params.id,
-    { date, exercises, duration: Number(duration) || 0 },
-    { new: true } 
+    {
+      title: title?.trim() || "Workout", // ADD: update title with fallback
+      date,
+      exercises,
+      duration: Number(duration) || 0,
+    },
+    { new: true }
   );
 
   if (!doc) return res.status(404).send("Workout not found");
@@ -95,6 +104,7 @@ app.put("/api/workouts/:id", async (req, res) => {
   res.json({
     workout: {
       id: doc._id.toString(),
+      title: doc.title, // ADD: return title
       date: doc.date,
       duration: doc.duration ?? 0,
       exercises: doc.exercises,

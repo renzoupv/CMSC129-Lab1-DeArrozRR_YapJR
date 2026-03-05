@@ -11,6 +11,7 @@ interface AddWorkoutFormProps {
 
 const AddWorkoutForm = ({ onAdd }: AddWorkoutFormProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [title, setTitle] = useState("");
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [name, setName] = useState("");
   const [sets, setSets] = useState("");
@@ -35,6 +36,10 @@ const AddWorkoutForm = ({ onAdd }: AddWorkoutFormProps) => {
     setWeight("");
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") addExercise();
+  };
+
   const removeExercise = (id: string) => {
     setExercises((prev) => prev.filter((e) => e.id !== id));
   };
@@ -44,11 +49,21 @@ const AddWorkoutForm = ({ onAdd }: AddWorkoutFormProps) => {
     onAdd({
       id: crypto.randomUUID(),
       date: new Date().toISOString(),
+      // Fall back to "Workout" if the user left the title blank
+      title: title.trim() || "Workout",
       exercises,
       duration: 0,
     });
+    setTitle("");
     setExercises([]);
     setIsOpen(false);
+  };
+
+  const handleClose = () => {
+    setIsOpen(false);
+    setTitle("");
+    setExercises([]);
+    setName(""); setSets(""); setReps(""); setWeight("");
   };
 
   if (!isOpen) {
@@ -71,9 +86,16 @@ const AddWorkoutForm = ({ onAdd }: AddWorkoutFormProps) => {
       animate={{ opacity: 1, scale: 1 }}
       className="rounded-lg border border-border bg-card p-5 space-y-4"
     >
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-heading font-bold text-foreground">New Workout</h3>
-        <button onClick={() => { setIsOpen(false); setExercises([]); }} className="text-muted-foreground hover:text-foreground">
+      {/* Title row — replaces the static "New Workout" heading */}
+      <div className="flex items-center gap-3">
+        <Input
+          autoFocus
+          placeholder="Workout name (e.g. Push Day)"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="flex-1 text-lg font-heading font-bold bg-transparent border-0 border-b border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-primary placeholder:text-muted-foreground/50 text-foreground"
+        />
+        <button onClick={handleClose} className="text-muted-foreground hover:text-foreground shrink-0">
           <X className="h-5 w-5" />
         </button>
       </div>
@@ -107,37 +129,35 @@ const AddWorkoutForm = ({ onAdd }: AddWorkoutFormProps) => {
           placeholder="Exercise"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          onKeyDown={handleKeyDown}
           className="col-span-2 sm:col-span-1 bg-secondary border-border text-foreground placeholder:text-muted-foreground"
         />
         <Input
           placeholder="Sets"
           type="number"
+          min={1}
           value={sets}
           onChange={(e) => setSets(e.target.value)}
+          onKeyDown={handleKeyDown}
           className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
         />
         <Input
           placeholder="Reps"
           type="number"
+          min={1}
           value={reps}
           onChange={(e) => setReps(e.target.value)}
+          onKeyDown={handleKeyDown}
           className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
         />
         <Input
           placeholder="Weight (lbs)"
           type="number"
+          min={0}
           value={weight}
           onChange={(e) => setWeight(e.target.value)}
-          className="hidden sm:block bg-secondary border-border text-foreground placeholder:text-muted-foreground"
-        />
-      </div>
-      <div className="flex sm:hidden">
-        <Input
-          placeholder="Weight (lbs)"
-          type="number"
-          value={weight}
-          onChange={(e) => setWeight(e.target.value)}
-          className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
+          onKeyDown={handleKeyDown}
+          className="col-span-2 sm:col-span-1 bg-secondary border-border text-foreground placeholder:text-muted-foreground"
         />
       </div>
 
@@ -163,4 +183,3 @@ const AddWorkoutForm = ({ onAdd }: AddWorkoutFormProps) => {
 };
 
 export default AddWorkoutForm;
-
