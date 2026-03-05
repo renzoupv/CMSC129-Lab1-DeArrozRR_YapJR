@@ -1,0 +1,38 @@
+{
+  "name": "lab1",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "csstype": "^3.2.3",
+    "framer-motion": "^12.34.2",
+    "lucide-react": "^0.574.0",
+    "motion-dom": "^12.34.2",
+    "motion-utils": "^12.29.2",
+    "react": "^19.2.4",
+    "tailwind-merge": "^3.4.1",
+    "tslib": "^2.8.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "scripts": {
+    "client": "npm run dev --prefix client",
+    "server": "npm run dev --prefix server",
+    "dev": "concurrently -n SERVER,CLIENT -c green,blue \"npm run server\" \"npm run client\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/renzoupv/CMSC129-Lab1-DeArrozRR_YapJR.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/renzoupv/CMSC129-Lab1-DeArrozRR_YapJR/issues"
+  },
+  "homepage": "https://github.com/renzoupv/CMSC129-Lab1-DeArrozRR_YapJR#readme"
+}

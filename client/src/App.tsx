@@ -5,29 +5,62 @@ import StatsBar from "@/components/StatsBar";
 import WorkoutHistory from "@/components/WorkoutHistory";
 import type { Workout } from "@/types/workout";
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
 export default function App() {
-  // 1. Load data from LocalStorage on startup
-  const [workouts, setWorkouts] = useState<Workout[]>(() => {
-    const saved = localStorage.getItem("workout-tracker-data");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // 2. Save data whenever it changes
+  // READ: load from backend on startup
   useEffect(() => {
-    localStorage.setItem("workout-tracker-data", JSON.stringify(workouts));
-  }, [workouts]);
+    (async () => {
+      try {
+        setError(null);
+        const res = await fetch(`${API_BASE}/api/workouts`);
+        if (!res.ok) throw new Error(await res.text());
+        const data = (await res.json()) as { workouts: Workout[] };
+        setWorkouts(data.workouts ?? []);
+      } catch (e: any) {
+        setError(e.message || "Failed to load workouts");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
-  const handleAddWorkout = (newWorkout: Workout) => {
-    setWorkouts([newWorkout, ...workouts]);
+  // CREATE: add workout via backend
+  const handleAddWorkout = async (newWorkout: Workout) => {
+    try {
+      setError(null);
+      const res = await fetch(`${API_BASE}/api/workouts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newWorkout),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = (await res.json()) as { workout: Workout };
+      setWorkouts([data.workout, ...workouts]);
+    } catch (e: any) {
+      setError(e.message || "Failed to add workout");
+    }
   };
 
-  const handleDeleteWorkout = (id: string) => {
-    setWorkouts(workouts.filter((w) => w.id !== id));
+  // DELETE: delete workout via backend
+  const handleDeleteWorkout = async (id: string) => {
+    try {
+      setError(null);
+      const res = await fetch(`${API_BASE}/api/workouts/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(await res.text());
+      setWorkouts(workouts.filter((w) => w.id !== id));
+    } catch (e: any) {
+      setError(e.message || "Failed to delete workout");
+    }
   };
 
-  // 3. Calculate Stats
+  // Stats (same as yours)
   const totalVolume = workouts.reduce((acc, w) => {
-    return acc + w.exercises.reduce((eAcc, e) => eAcc + (e.sets * e.reps * e.weight), 0);
+    return acc + w.exercises.reduce((eAcc, e) => eAcc + e.sets * e.reps * e.weight, 0);
   }, 0);
 
   const thisWeekCount = workouts.filter((w) => {
@@ -40,7 +73,6 @@ export default function App() {
   return (
     <div className="min-h-screen bg-background text-foreground font-body p-4 sm:p-8">
       <div className="mx-auto max-w-3xl space-y-8">
-        
         {/* Header */}
         <header className="flex items-center gap-3 mb-8">
           <div className="p-3 bg-primary rounded-xl shadow-glow">
@@ -52,13 +84,15 @@ export default function App() {
           </div>
         </header>
 
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
         {/* Stats Dashboard */}
         <section>
-          <StatsBar 
-            totalWorkouts={workouts.length} 
-            thisWeek={thisWeekCount} 
-            totalVolume={totalVolume} 
-          />
+          <StatsBar totalWorkouts={workouts.length} thisWeek={thisWeekCount} totalVolume={totalVolume} />
         </section>
 
         {/* Main Actions */}
@@ -68,9 +102,12 @@ export default function App() {
 
         {/* History List */}
         <section>
-          <WorkoutHistory workouts={workouts} onDelete={handleDeleteWorkout} />
+          {loading ? (
+            <div className="text-sm text-muted-foreground">Loading workouts...</div>
+          ) : (
+            <WorkoutHistory workouts={workouts} onDelete={handleDeleteWorkout} />
+          )}
         </section>
-
       </div>
     </div>
   );

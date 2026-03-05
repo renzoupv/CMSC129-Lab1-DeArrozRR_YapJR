@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Workout, Exercise } from "@/types/workout";
+import type { Workout, Exercise } from "@/types/workout";
 
 const STORAGE_KEY = "workout-tracker-data";
 
