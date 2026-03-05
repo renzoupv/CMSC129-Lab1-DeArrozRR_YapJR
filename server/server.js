@@ -25,6 +25,7 @@ const workoutSchema = new mongoose.Schema(
     title: { type: String, default: "Workout" }, // ADD: title field
     date: { type: String, required: true },
     duration: { type: Number, default: 0 },
+    isDeleted: { type: Boolean, default: false },
 
     exercises: [
       {
@@ -43,15 +44,37 @@ const Workout = mongoose.model("Workout", workoutSchema);
 // --- CRUD routes ---
 // READ
 app.get("/api/workouts", async (req, res) => {
-  const docs = await Workout.find().sort({ createdAt: -1 });
+  // If the frontend asks for ?deleted=true, fetch the trash. Otherwise, fetch active.
+  const isTrash = req.query.deleted === "true";
+  const query = isTrash ? { isDeleted: true } : { isDeleted: { $ne: true } };
+
+  const docs = await Workout.find(query).sort({ createdAt: -1 });
   const workouts = docs.map((d) => ({
     id: d._id.toString(),
-    title: d.title ?? "Workout", // ADD: include title (fallback for old docs)
     date: d.date,
     duration: d.duration ?? 0,
+    title: d.title,
     exercises: d.exercises,
   }));
   res.json({ workouts });
+});
+
+// RESTORE (New Route!)
+app.put("/api/workouts/:id/restore", async (req, res) => {
+  await Workout.findByIdAndUpdate(req.params.id, { isDeleted: false });
+  res.json({ ok: true, message: "Workout restored from trash." });
+});
+
+// DELETE (Handles BOTH Soft and Hard Delete)
+app.delete("/api/workouts/:id", async (req, res) => {
+  const { type } = req.query; 
+  if (type === "hard") {
+    await Workout.findByIdAndDelete(req.params.id);
+    res.json({ ok: true, message: "Workout permanently purged." });
+  } else {
+    await Workout.findByIdAndUpdate(req.params.id, { isDeleted: true });
+    res.json({ ok: true, message: "Workout moved to trash." });
+  }
 });
 
 // CREATE
@@ -114,8 +137,17 @@ app.put("/api/workouts/:id", async (req, res) => {
 
 // DELETE
 app.delete("/api/workouts/:id", async (req, res) => {
-  await Workout.findByIdAndDelete(req.params.id);
-  res.json({ ok: true });
+  const { type } = req.query; // Looks for ?type=hard in the URL
+
+  if (type === "hard") {
+    // HARD DELETE: Permanently purge from the database
+    await Workout.findByIdAndDelete(req.params.id);
+    res.json({ ok: true, message: "Workout permanently purged." });
+  } else {
+    // SOFT DELETE: Just flip the isDeleted flag
+    await Workout.findByIdAndUpdate(req.params.id, { isDeleted: true });
+    res.json({ ok: true, message: "Workout moved to trash." });
+  }
 });
 
 // start server + connect DB

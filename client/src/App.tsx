@@ -4,6 +4,7 @@ import AddWorkoutForm from "@/components/AddWorkoutForm";
 import StatsBar from "@/components/StatsBar";
 import WorkoutHistory from "@/components/WorkoutHistory";
 import type { Workout } from "@/types/workout";
+import { Button } from "@/components/ui/button";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -11,13 +12,18 @@ export default function App() {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // ✅ New State: Toggle between Active History and Trash Bin
+  const [showTrash, setShowTrash] = useState(false);
 
-  // READ: load from backend on startup
+  // READ: load from backend (Updates automatically when showTrash changes)
   useEffect(() => {
     (async () => {
       try {
+        setLoading(true);
         setError(null);
-        const res = await fetch(`${API_BASE}/api/workouts`);
+        // Notice the ?deleted=${showTrash} in the URL!
+        const res = await fetch(`${API_BASE}/api/workouts?deleted=${showTrash}`);
         if (!res.ok) throw new Error(await res.text());
         const data = (await res.json()) as { workouts: Workout[] };
         setWorkouts(data.workouts ?? []);
@@ -27,9 +33,9 @@ export default function App() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [showTrash]); 
 
-  // CREATE: add workout via backend
+  // CREATE
   const handleAddWorkout = async (newWorkout: Workout) => {
     try {
       setError(null);
@@ -40,13 +46,13 @@ export default function App() {
       });
       if (!res.ok) throw new Error(await res.text());
       const data = (await res.json()) as { workout: Workout };
-      setWorkouts([data.workout, ...workouts]);
+      if (!showTrash) setWorkouts([data.workout, ...workouts]);
     } catch (e: any) {
       setError(e.message || "Failed to add workout");
     }
   };
 
-  // UPDATE: edit workout via backend
+  // UPDATE
   const handleUpdateWorkout = async (id: string, updatedWorkout: Workout) => {
     try {
       setError(null);
@@ -63,11 +69,11 @@ export default function App() {
     }
   };
 
-  // DELETE: delete workout via backend
-  const handleDeleteWorkout = async (id: string) => {
+  // DELETE (Soft & Hard)
+  const handleDeleteWorkout = async (id: string, type: "soft" | "hard") => {
     try {
       setError(null);
-      const res = await fetch(`${API_BASE}/api/workouts/${id}`, { method: "DELETE" });
+      const res = await fetch(`${API_BASE}/api/workouts/${id}?type=${type}`, { method: "DELETE" });
       if (!res.ok) throw new Error(await res.text());
       setWorkouts(workouts.filter((w) => w.id !== id));
     } catch (e: any) {
@@ -75,39 +81,32 @@ export default function App() {
     }
   };
 
-  // Stats Logic
-  const totalVolume = workouts.reduce((acc, w) => {
-    return acc + w.exercises.reduce((eAcc, e) => eAcc + e.sets * e.reps * e.weight, 0);
-  }, 0);
+  // ✅ RESTORE (Moves it out of the trash bin)
+  const handleRestoreWorkout = async (id: string) => {
+    try {
+      setError(null);
+      const res = await fetch(`${API_BASE}/api/workouts/${id}/restore`, { method: "PUT" });
+      if (!res.ok) throw new Error(await res.text());
+      setWorkouts(workouts.filter((w) => w.id !== id));
+    } catch (e: any) {
+      setError(e.message || "Failed to restore workout");
+    }
+  };
 
-  const thisWeekCount = workouts.filter((w) => {
-    const workoutDate = new Date(w.date);
-    const now = new Date();
-    const oneWeekAgo = new Date(now.setDate(now.getDate() - 7));
-    return workoutDate > oneWeekAgo;
-  }).length;
+  // Stats
+  const totalVolume = workouts.reduce((acc, w) => acc + w.exercises.reduce((eAcc, e) => eAcc + e.sets * e.reps * e.weight, 0), 0);
+  const thisWeekCount = workouts.filter((w) => new Date(w.date) > new Date(new Date().setDate(new Date().getDate() - 7))).length;
 
-  // Streak Logic (Checks consecutive days)
   const calculateStreak = () => {
     if (workouts.length === 0) return 0;
-    
-    // Convert to unique dates at midnight to ignore time differences
-    const uniqueDates = [...new Set(workouts.map(w => new Date(w.date).setHours(0,0,0,0)))];
-    uniqueDates.sort((a, b) => b - a); // Sort newest to oldest
-
+    const uniqueDates = [...new Set(workouts.map(w => new Date(w.date).setHours(0,0,0,0)))].sort((a, b) => b - a);
     const today = new Date().setHours(0,0,0,0);
-    const oneDay = 86400000; // milliseconds in a day
-
-    // If the most recent workout isn't today or yesterday, streak is broken (0)
+    const oneDay = 86400000;
     if (uniqueDates[0] < today - oneDay) return 0;
-
     let streak = 1;
     for (let i = 0; i < uniqueDates.length - 1; i++) {
-      if (uniqueDates[i] - uniqueDates[i+1] === oneDay) {
-        streak++;
-      } else {
-        break; // Gap found, stop counting
-      }
+      if (uniqueDates[i] - uniqueDates[i+1] === oneDay) streak++;
+      else break;
     }
     return streak;
   };
@@ -125,33 +124,39 @@ export default function App() {
           </div>
         </header>
 
-        {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
-          </div>
+        {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+
+        <section>
+          <StatsBar totalWorkouts={workouts.length} thisWeek={thisWeekCount} totalVolume={totalVolume} currentStreak={calculateStreak()} />
+        </section>
+
+        {/* Hide Add form if we are currently looking at the Trash Bin */}
+        {!showTrash && (
+          <section>
+            <AddWorkoutForm onAdd={handleAddWorkout} />
+          </section>
         )}
 
         <section>
-          <StatsBar 
-            totalWorkouts={workouts.length} 
-            thisWeek={thisWeekCount} 
-            totalVolume={totalVolume} 
-            currentStreak={calculateStreak()} // Pass new prop
-          />
-        </section>
+          {/* ✅ The Toggle Header */}
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-heading font-bold text-foreground">
+              {showTrash ? "Trash Bin" : "History"}
+            </h2>
+            <Button variant="outline" size="sm" onClick={() => setShowTrash(!showTrash)}>
+              {showTrash ? "View Active Workouts" : "View Trash Bin"}
+            </Button>
+          </div>
 
-        <section>
-          <AddWorkoutForm onAdd={handleAddWorkout} />
-        </section>
-
-        <section>
           {loading ? (
             <div className="text-sm text-muted-foreground">Loading workouts...</div>
           ) : (
             <WorkoutHistory 
               workouts={workouts} 
               onDelete={handleDeleteWorkout} 
-              onUpdate={handleUpdateWorkout} // Pass new prop
+              onUpdate={handleUpdateWorkout} 
+              onRestore={handleRestoreWorkout} 
+              isTrashView={showTrash} 
             />
           )}
         </section>
