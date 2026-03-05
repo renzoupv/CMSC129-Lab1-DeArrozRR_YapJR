@@ -23,11 +23,11 @@ app.get("/api/health", (req, res) => {
 const workoutSchema = new mongoose.Schema(
   {
     date: { type: String, required: true },
-    duration: { type: Number, default: 0 }, // ✅ now stored
+    duration: { type: Number, default: 0 }, 
 
     exercises: [
       {
-        id: { type: String, required: true }, // ✅ now stored
+        id: { type: String, required: true }, 
         name: { type: String, required: true },
         sets: { type: Number, required: true },
         reps: { type: Number, required: true },
@@ -46,7 +46,7 @@ app.get("/api/workouts", async (req, res) => {
   const workouts = docs.map((d) => ({
     id: d._id.toString(),
     date: d.date,
-    duration: d.duration ?? 0,     // ✅ add this
+    duration: d.duration ?? 0,     
     exercises: d.exercises,
   }));
   res.json({ workouts });
@@ -63,14 +63,40 @@ app.post("/api/workouts", async (req, res) => {
   const doc = await Workout.create({
     date,
     exercises,
-    duration: Number(duration) || 0,  // ✅ store duration if provided
+    duration: Number(duration) || 0,  
   });
 
   res.status(201).json({
     workout: {
       id: doc._id.toString(),
       date: doc.date,
-      duration: doc.duration ?? 0,     // ✅ return it
+      duration: doc.duration ?? 0,    
+      exercises: doc.exercises,
+    },
+  });
+});
+
+// UPDATE
+app.put("/api/workouts/:id", async (req, res) => {
+  const { date, exercises, duration } = req.body;
+
+  if (!date || !Array.isArray(exercises)) {
+    return res.status(400).send("Invalid payload");
+  }
+
+  const doc = await Workout.findByIdAndUpdate(
+    req.params.id,
+    { date, exercises, duration: Number(duration) || 0 },
+    { new: true } 
+  );
+
+  if (!doc) return res.status(404).send("Workout not found");
+
+  res.json({
+    workout: {
+      id: doc._id.toString(),
+      date: doc.date,
+      duration: doc.duration ?? 0,
       exercises: doc.exercises,
     },
   });
